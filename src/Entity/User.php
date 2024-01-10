@@ -5,6 +5,7 @@ namespace App\Entity;
 use App\Repository\UserRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -12,22 +13,40 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
+use ApiPlatform\Metadata\Patch;
+use ApiPlatform\Metadata\Put;
 use App\ApiResource\DTO\UserDTO;
 use App\ApiResource\State\UserCreateProcessor;
 use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Component\HttpFoundation\File\File;
+use Symfony\Component\Serializer\Annotation\Groups;
+use Vich\UploaderBundle\Mapping\Annotation as Vich;
+use ApiPlatform\Metadata\ApiProperty;
+
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ApiResource(
+    normalizationContext: ['groups' => ['user']],
     operations: [
         new Get(),
         new GetCollection(),
-        new Post(uriTemplate: 'create/user', input: UserDto::class, processor: UserCreateProcessor::class)
+        new Post(uriTemplate: 'create/user', input: UserDto::class, processor: UserCreateProcessor::class),
+        new Post(uriTemplate: 'create/image/user',inputFormats: ['multipart' => ['multipart/form-data']],normalizationContext: ['groups' => ['picture:read']],
+            denormalizationContext: ['groups' => ['picture:write']]),
+        new Post(
+            uriTemplate: 'update/image/{id}/user',
+            inputFormats: ['multipart' => ['multipart/form-data']],
+            normalizationContext: ['groups' => ['picture:read']],
+            denormalizationContext: ['groups' => ['picture:write']]
+        ),
     ]
 )]
+#[Vich\Uploadable]
 class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
+    #[Groups(['user'])]
     #[ORM\Column]
     private ?int $id = null;
     
@@ -37,10 +56,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     )]
     #[Assert\NotNull]
     #[Assert\NotBlank]
+    #[Groups(['user'])]
     #[ORM\Column(length: 180, unique: true)]
     private ?string $email = null;
 
     #[ORM\Column]
+    #[Groups(['user'])]
     private array $roles = [];
 
     /**
@@ -63,11 +84,29 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     )]
     #[Assert\NotNull]
     #[Assert\NotBlank]
+    #[Groups(['user'])]
     #[ORM\Column(length: 155)]
     private ?string $name = null;
 
     #[ORM\OneToMany(mappedBy: 'user_id', targetEntity: Stats::class)]
     private Collection $stats;
+
+    #[Vich\UploadableField(mapping: 'picture', fileNameProperty: 'filename')]
+    #[Groups(['picture:write'])]
+    private $file;
+
+
+
+    #[ORM\Column(length: 255, nullable: true)]
+    #[Groups(['picture:read', 'user'])]
+    private ?string $filename = null;
+
+    #[ApiProperty(types: ['https://schema.org/contentUrl'])]
+    #[Groups(['picture:read', 'user'])]
+    public ?string $contentUrl = null;
+
+    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
+    private $updatedAt;
 
     public function __construct()
     {
@@ -220,4 +259,64 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
 
 
+    public function getFilename(): ?string
+    {
+        return $this->filename;
+    }
+
+    public function setFilename(?string $filename): static
+    {
+        $this->filename = $filename;
+
+        return $this;
+    }
+
+
+    public function getFile(){
+        return $this->file;
+    }
+
+    public function setFile(?File $file){
+
+        $this->file = $file;
+        if ($file) {
+            // if 'updatedAt' is not defined in your entity, use another property
+            $this->updatedAt = new \DateTime('now');
+        }
+        return $this;
+    }
+
+    public function getContentUrl(): ?string
+    {
+        return $this->contentUrl;
+    }
+
+    public function setContentUrl(?string $contentUrl): void
+    {
+        $this->contentUrl = $contentUrl;
+    }
+
+
+
+    /**
+     * Sets updatedAt.
+     *
+     * @return $this
+     */
+    public function setUpdatedAt(\DateTime $updatedAt)
+    {
+        $this->updatedAt = $updatedAt;
+
+        return $this;
+    }
+
+    /**
+     * Returns updatedAt.
+     *
+     * @return \DateTime
+     */
+    public function getUpdatedAt()
+    {
+        return $this->updatedAt;
+    }
 }

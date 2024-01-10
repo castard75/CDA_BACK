@@ -2,18 +2,18 @@ version: '3'
 services:
   apache:
     build: .docker/apache
-    container_name: allanBack_apache
+    container_name: allanBacksf6_apache
     ports:
       - 80:80
     volumes:
       - .docker/config/vhosts:/etc/apache2/sites-enabled
-      - .:/home/wwwroot/allanBack
+      - .:/home/wwwroot/allanBacksf6
     depends_on:
       - php
 
   db:
     image: mariadb:latest
-    container_name: sf4allanBack_mariadb
+    container_name: sf4allanBacksf6_mariadb
     environment:
       MYSQL_ROOT_PASSWORD: root
     ports:
@@ -21,7 +21,7 @@ services:
 
   phpmyadmin:
     image: phpmyadmin/phpmyadmin
-    container_name: sfallanBack_myadmin
+    container_name: sfallanBacksf6_myadmin
     links:
       - "db:db"
     environment:
@@ -35,11 +35,11 @@ services:
 
   php:
     build: .docker/php
-    container_name: allanBack_php
+    container_name: allanBacksf6_php
     volumes:
-      - .:/home/wwwroot/allanBack
+      - .:/home/wwwroot/allanBacksf6
     environment:
-      - maildev_host=allanBack_maildev
+      - maildev_host=allanBacksf6_maildev
     depends_on:
       - db
 # Retirez ou commentez la section suivante si vous n'utilisez pas PostgreSQL
